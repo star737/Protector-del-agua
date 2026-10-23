@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#123c52">
+<title>Guardianes del Agua</title>
+<style>
+  :root { --ink:#563b4b; --panel:#fff4f8; --aqua:#70cfd0; --cream:#fff8fb; --gold:#f3b6ce; }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; min-height:100vh; color:#604452;
+    font-family: "Trebuchet MS", "Courier New", monospace;
+    background:radial-gradient(circle at 12% 8%,#fff8fb 0 5%,transparent 26%),linear-gradient(135deg,#fff0f6,#f9e5ef 52%,#e9f8f5);
+    display:flex; flex-direction:column; align-items:center; padding:18px 12px 28px;
+  }
+  header { width:min(100%,1200px); text-align:center; margin-bottom:14px; }
+  h1 { margin:0 0 7px; font-family:Georgia,serif; font-size:clamp(1.55rem,4vw,2.45rem); color:#c65d8a; text-shadow:2px 2px #fff; letter-spacing:.04em; }
+  header p { margin:0; font-size:.92rem; line-height:1.5; color:#765568; }
+  .game-shell { width:min(100%,1200px); border:3px solid #e9a9c4; border-radius:18px; padding:10px; background:linear-gradient(145deg,#fffafd,#f5fffc); box-shadow:0 7px 0 #d9a0b8,0 15px 30px #a65e7b22; }
+  .hud { display:flex; gap:8px; flex-wrap:wrap; justify-content:space-between; align-items:center; margin:0 0 9px; font-size:.82rem; }
+  .hud span { background:linear-gradient(135deg,#fff0f6,#fffafd); border:2px solid #edbfd2; border-radius:14px; padding:7px 10px; color:#7a4b62; box-shadow:0 3px 0 #f1d0df; }
+  #scene { display:block; width:100%; height:auto; aspect-ratio: 16 / 9; image-rendering:pixelated; max-height: min(78vh, 820px); background:#7bd8e8; border:3px solid #d995b4; border-radius:14px; box-shadow:inset 0 0 0 3px #fff7fb,0 4px 0 #b8e8df; }
+  .message { min-height:48px; margin-top:8px; padding:12px 14px 8px; color:#765568; font-size:.9rem; line-height:1.5; background:linear-gradient(100deg,#fff0f6,#e9fbf6); border:1px solid #f0c6d8; border-radius:14px; }
+  .controls { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:8px; }
+  button { cursor:pointer; color:#70445b; font: bold .9rem "Trebuchet MS",sans-serif; border:1px solid #e7a2bf; border-bottom:4px solid #d78eae; border-radius:999px; background:linear-gradient(135deg,#f8c8dc,#ffe5ef); padding:10px 15px; box-shadow:0 2px 0 #f5d5e2; }
+  button:hover { filter:brightness(1.08); transform:translateY(-1px); }
+  button:focus-visible { outline:3px solid white; outline-offset:3px; }
+  .secondary { background:linear-gradient(135deg,#d8f4ef,#f0fffb); border-color:#a3d8ce; border-bottom-color:#8cc7bb; }
+  .small-note { width:min(100%,1200px); font-size:.82rem; line-height:1.65; color:#765568; margin-top:14px; background:#fff9fc; border:1px dashed #e8aac4; border-radius:14px; padding:12px 15px; }
+  .overlay { position:relative; }
+  .overlay-card { display:none; position:absolute; inset:3px; z-index:2; padding:clamp(18px,4vw,48px); overflow:auto; background:radial-gradient(circle at 15% 15%,#fff 0 3%,transparent 3.5%),radial-gradient(circle at 85% 80%,#fff 0 3%,transparent 3.5%),linear-gradient(145deg,rgba(255,244,249,.98),rgba(232,250,245,.97)); border:4px solid #e9a9c4; border-radius:9px; text-align:center; align-items:center; justify-content:center; flex-direction:column; gap:16px; }
+  .overlay-card.show { display:flex; }
+  .overlay-card h2 { margin:0; color:#c65d8a; font-family:Georgia,serif; font-size:clamp(1.5rem,4vw,3rem); text-shadow:2px 2px #fff; letter-spacing:.03em; }
+  .overlay-card p { max-width:720px; line-height:1.7; margin:0; font-size:clamp(.85rem,2vw,1.08rem); color:#765568; }
+  .overlay-card .controls { margin-top:0; }
+  .legend { color:#8b6378; font-size:.78rem; }
+  @media (max-width:520px) {
+    body { padding:10px 7px 20px; }
+    .game-shell { padding:6px; border-width:3px; }
+    .hud { font-size:.72rem; }
+    .hud span { padding:5px 6px; }
+    button { padding:9px 10px; font-size:.8rem; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>♡ Guardianes del Agua ♡</h1>
+  <p>Una mini aventura para cuidar el río, encontrar gotitas y dejar el mundo un poquito mejor ✿</p>
+</header>
+
+<main class="game-shell">
+  <div class="hud" aria-live="polite">
+    <span id="missionHud">MISIÓN 1</span>
+    <span id="waterHud">Gotas: 0/3</span>
+    <span id="scoreHud">Puntos: 0</span>
+    <span id="livesHud">Energía: ♥ ♥ ♥</span>
+  </div>
+  <div class="overlay">
+    <canvas id="scene" width="640" height="360" aria-label="Videojuego de exploración pixel art"></canvas>
+    <section id="overlayCard" class="overlay-card show" aria-live="polite">
+      <h2 id="overlayTitle">♡ Guardianes del Agua ♡</h2>
+      <p id="overlayText">¡Hola, guardiana! ♡ Explora el valle, sigue el río turquesa y recoge las gotitas para ayudar a mantener el agua limpia.</p>
+      <p class="legend">✿ Camina con ← → o A/D (el personaje mira hacia donde camina) · Salta con ESPACIO · Pulsa E cerca de letreros y personajes ✿</p>
+      <div class="controls">
+        <button id="startBtn">Comenzar aventura</button>
+        <button id="helpBtn" class="secondary">Cómo jugar</button>
+      </div>
+    </section>
+  </div>
+  <div id="message" class="message" role="status">♡ Consejo: sigue el río turquesa y busca las gotitas brillantes. ♡</div>
+  <div class="controls">
+    <button id="leftBtn" class="secondary" aria-label="Mover a la izquierda">◀ Izquierda</button>
+    <button id="jumpBtn" class="secondary">▲ Saltar</button>
+    <button id="rightBtn" class="secondary" aria-label="Mover a la derecha">Derecha ▶</button>
+    <button id="interactBtn">E · Interactuar</button>
+    <button id="pauseBtn" class="secondary">Pausar</button>
+    <button id="restartBtn" class="secondary">Reiniciar</button>
+  </div>
+</main>
+
+<p class="small-note">
+  <strong>Objetivo:</strong> aprender a cuidar el agua mientras exploras este pequeño mundo pixelado.
+  <br>♡ Acércate a los personajes y letreros y pulsa <strong>E · Interactuar</strong>. Salta los residuos y encuentra todas las gotitas de cada zona. ♡
+</p>
+
+<script>
+(() => {
+  "use strict";
+
+  // Todo el juego está en este archivo para que funcione sin instalar nada.
+  const canvas = document.getElementById("scene");
+  const ctx = canvas.getContext("2d");
+  const $ = id => document.getElementById(id);
+  const hud = {
+    mission: $("missionHud"), water: $("waterHud"),
+    score: $("scoreHud"), lives: $("livesHud"), message: $("message")
+  };
+
+  const W = canvas.width, H = canvas.height;
+  const keys = new Set();
+  let state = "menu", levelIndex = 0, score = 0, lives = 3, collected = 0;
+  let cameraX = 0, lastTime = 0, elapsed = 0, invulnerable = 0;
+  let player, items = [], trash = [], people = [], signs = [], particles = [];
+  let activePrompt = null, levelMessage = "";
+  const TILE = 32;
+  const levels = [
+    {
+      name: "El manantial", length: 1500, sky: "#79d9e8", hill: "#50b9a0", ground: "#5c9a54",
+      drops: 3, mission: "Recoge 3 gotas de agua limpia.",
+      tip: "El agua dulce disponible es limitada. Cierra la llave mientras te cepillas los dientes.",
+      objects: [{x:330,y:0,type:"sign",text:"El agua dulce es limitada."},{x:700,y:0,type:"person",text:"¡Gracias por ayudar! Ahorra agua cerrando la llave al enjabonarte."},{x:1080,y:0,type:"sign",text:"Repara las fugas: una gotera también desperdicia agua."}],
+      dropXs:[260,530,900,1250], trashXs:[440,1010]
+    },
+    {
+      name: "El río en peligro", length: 1750, sky: "#76c9dc", hill: "#3c9d8e", ground: "#4e8750",
+      drops: 4, mission: "Recoge 4 gotas y evita los residuos del río.",
+      tip: "Nunca tires aceite, pintura, medicamentos ni basura al drenaje o a los ríos.",
+      objects: [{x:390,y:0,type:"person",text:"Los residuos pueden dañar a los peces y contaminar el agua."},{x:800,y:0,type:"sign",text:"Separa la basura y deposítala en su lugar."},{x:1300,y:0,type:"person",text:"Participa en limpiezas, pero nunca manipules residuos peligrosos."}],
+      dropXs:[230,570,900,1180,1510], trashXs:[350,680,1050,1400]
+    },
+    {
+      name: "La comunidad sostenible", length: 1950, sky: "#8bd7ed", hill: "#68b887", ground: "#568f4d",
+      drops: 5, mission: "Reúne 5 gotas y visita los consejos de ahorro.",
+      tip: "Usa solo el agua necesaria, reutiliza agua segura cuando sea apropiado y reporta fugas.",
+      objects: [{x:300,y:0,type:"sign",text:"Riega las plantas temprano o al atardecer para reducir evaporación."},{x:720,y:0,type:"person",text:"Lava el auto con cubeta en lugar de dejar correr la manguera."},{x:1180,y:0,type:"sign",text:"Usa cargas completas al lavar ropa y platos cuando sea posible."},{x:1580,y:0,type:"person",text:"¡Misión final! Comparte estos hábitos con tu familia y escuela."}],
+      dropXs:[200,480,800,1070,1400,1740], trashXs:[610,980,1510]
+    }
+  ];
+
+  function resetPlayer() {
+    player = { x: 65, y: 220, w: 23, h: 30, vx: 0, vy: 0, onGround: false, facing: 1 };
+  }
+  function buildLevel() {
+    const level = levels[levelIndex];
+    collected = 0; cameraX = 0; invulnerable = 0; activePrompt = null;
+    resetPlayer();
+    items = level.dropXs.map((x,i) => ({x, y: [228,178,210,160,220,185][i%6], taken:false, phase:i}));
+    trash = level.trashXs.map((x,i) => ({x, y: 278, w:25, h:24, kind:i%2}));
+    people = level.objects.filter(o=>o.type==="person").map(o=>({...o,y:236,w:24,h:40,seen:false}));
+    signs = level.objects.filter(o=>o.type==="sign").map(o=>({...o,y:232,w:25,h:42,seen:false}));
+    particles = [];
+    hud.mission.textContent = `MISIÓN ${levelIndex+1}: ${level.name}`;
+    hud.water.textContent = `Gotas: 0/${level.drops}`;
+    hud.lives.textContent = `Energía: ${"♥ ".repeat(lives).trim()}`;
+    hud.message.textContent = level.mission;
+    levelMessage = level.mission;
+    updateHud();
+  }
+  function startGame() {
+    score = 0; lives = 3; levelIndex = 0; state = "playing";
+    $("overlayCard").classList.remove("show");
+    buildLevel();
+  }
+  function showOverlay(title, text, buttons) {
+    $("overlayTitle").textContent = title;
+    $("overlayText").textContent = text;
+    const card = $("overlayCard");
+    card.innerHTML = "";
+    const h = document.createElement("h2"); h.id = "overlayTitle"; h.textContent = title;
+    const p = document.createElement("p"); p.id = "overlayText"; p.textContent = text;
+    const controls = document.createElement("div"); controls.className = "controls";
+    card.append(h,p);
+    buttons.forEach(b => {
+      const btn = document.createElement("button");
+      btn.textContent = b.label;
+      if (b.secondary) btn.className = "secondary";
+      btn.addEventListener("click", b.action);
+      controls.append(btn);
+    });
+    card.append(controls); card.classList.add("show");
+  }
+  function help() {
+    state = "help";
+    showOverlay("Cómo jugar", "Explora cada zona caminando. Recoge las gotas azules, evita tocar residuos y acércate a los letreros o personajes para pulsar E. Cada misión tiene más retos que la anterior. Usa ← → o A/D para caminar; ESPACIO, ↑ o W para saltar. También puedes usar los botones bajo el juego.", [
+      {label:"¡A jugar!",action:startGame},{label:"Volver",secondary:true,action:()=>{state="menu";showOverlay("♡ Guardianes del Agua ♡","¡Hola, guardiana! ♡ Explora el valle, sigue el río turquesa y recoge las gotitas para ayudar a mantener el agua limpia.",[{label:"Comenzar aventura",action:startGame},{label:"Cómo jugar",secondary:true,action:help}]);}}
+    ]);
+  }
+  function updateHud() {
+    hud.water.textContent = `Gotas: ${collected}/${levels[levelIndex].drops}`;
+    hud.score.textContent = `Puntos: ${score}`;
+    hud.lives.textContent = `Energía: ${"♥ ".repeat(Math.max(0,lives)).trim() || "0"}`;
+  }
+  function say(text) { hud.message.textContent = text; }
+  function interact() {
+    if(state !== "playing") return;
+    const px = player.x + player.w/2;
+    let nearest = null, distance = 9999;
+    [...people,...signs].forEach(o=>{
+      const d = Math.abs((o.x+o.w/2)-px);
+      if(d < distance && d < 75) { nearest=o; distance=d; }
+    });
+    if(nearest) {
+      nearest.seen = true;
+      say(nearest.text);
+      score += 5; updateHud();
+      return;
+    }
+    say("Explora un poco más: acércate a un personaje o letrero para descubrir un consejo.");
+  }
+  function jump() {
+    if(state==="playing" && player.onGround) { player.vy=-410; player.onGround=false; }
+  }
+  function moveButton(dir) {
+    if(state==="playing") { player.x += dir*22; player.x=Math.max(0,Math.min(levels[levelIndex].length-player.w,player.x)); player.facing=dir; }
+  }
+  function hurt() {
+    if(invulnerable>0) return;
+    lives--; invulnerable=1.5; player.vy=-190; player.vx=player.facing*-90;
+    say("¡Cuidado con los residuos! Evita tocarlos para proteger el río.");
+    updateHud();
+    if(lives<=0) {
+      state="over";
+      showOverlay("¡Inténtalo otra vez!", "Los residuos te dejaron sin energía, pero puedes volver a intentarlo. Recuerda saltarlos y buscar las gotas.", [
+        {label:"Reintentar misión",action:()=>{lives=3;score=0;levelIndex=0;state="playing";$("overlayCard").classList.remove("show");buildLevel();}},
+        {label:"Volver al inicio",secondary:true,action:()=>{state="menu";showOverlay("Guardianes del Agua","♡ Cuida el agua, recoge gotitas y comparte pequeños hábitos para proteger el río. ♡",[{label:"Comenzar aventura",action:startGame},{label:"Cómo jugar",secondary:true,action:help}]);}}
+      ]);
+    }
+  }
+  function completeLevel() {
+    if(levelIndex < levels.length-1) {
+      state="between";
+      const completedName=levels[levelIndex].name;
+      showOverlay("¡Misión completada!", `Terminaste "${completedName}". Consejo aprendido: ${levels[levelIndex].tip} Prepárate para una zona con más retos.`, [
+        {label:"Siguiente misión",action:()=>{levelIndex++;state="playing";$("overlayCard").classList.remove("show");buildLevel();}},
+        {label:"Reiniciar juego",secondary:true,action:startGame}
+      ]);
+    } else {
+      state="won";
+      showOverlay("¡Salvaste el valle!", `¡Completaste las 3 misiones! Puntuación final: ${score}. Recuerda: cada persona puede ayudar a cuidar el agua evitando la contaminación y reduciendo el desperdicio.`, [
+        {label:"Jugar otra vez",action:startGame},
+        {label:"Ver controles",secondary:true,action:help}
+      ]);
+    }
+  }
+
+  function update(dt) {
+    if(state!=="playing") return;
+    elapsed += dt;
+    if(invulnerable>0) invulnerable-=dt;
+    const left = keys.has("ArrowLeft")||keys.has("a")||keys.has("A");
+    const right = keys.has("ArrowRight")||keys.has("d")||keys.has("D");
+    const speed = 220;
+    player.vx = (right?speed:0) - (left?speed:0);
+    if(player.vx > 0) player.facing = 1;
+    else if(player.vx < 0) player.facing = -1;
+    player.x += player.vx*dt;
+    player.x=Math.max(0,Math.min(levels[levelIndex].length-player.w,player.x));
+    player.vy += 950*dt; player.y += player.vy*dt;
+    const floor=278;
+    if(player.y+player.h>=floor) { player.y=floor-player.h; player.vy=0; player.onGround=true; } else player.onGround=false;
+    // Las gotas se recogen al tocarlas.
+    items.forEach(it=>{
+      if(!it.taken && player.x<it.x+20 && player.x+player.w>it.x && player.y<it.y+20 && player.y+player.h>it.y) {
+        it.taken=true; collected++; score+=10; say("¡Gota recuperada! El agua limpia es valiosa."); updateHud();
+      }
+    });
+    trash.forEach(t=>{
+      if(player.x<t.x+t.w && player.x+player.w>t.x && player.y<t.y+t.h && player.y+player.h>t.y) hurt();
+    });
+    if(collected>=levels[levelIndex].drops) {
+      // Se necesita llegar al final de la zona después de reunir las gotas.
+      if(player.x > levels[levelIndex].length-120) completeLevel();
+      else if(!levelMessage.includes("¡Gotas reunidas!")) { levelMessage="¡Gotas reunidas! Avanza hasta el portal verde al final de la zona."; say(levelMessage); }
+    }
+    cameraX=Math.max(0,Math.min(levels[levelIndex].length-W,player.x-W*0.5));
+  }
+
+  function rect(x,y,w,h,color) { ctx.fillStyle=color; ctx.fillRect(Math.round(x),Math.round(y),w,h); }
+  function drawCloud(x,y) {
+    rect(x,y,42,12,"#f4ffff"); rect(x+8,y-8,22,12,"#f4ffff"); rect(x+28,y-3,20,12,"#f4ffff");
+  }
+  function drawWorld() {
+    const l=levels[levelIndex];
+    rect(0,0,W,H,l.sky);
+    // Sol y nubes con formas cuadradas de estilo retro.
+    rect(520-cameraX*.08,35,42,42,"#ffe58a"); rect(530-cameraX*.08,25,22,62,"#ffe58a");
+    for(let i=0;i<7;i++) drawCloud(((i*150-cameraX*.18)%(W+90)+W+90)%(W+90)-45,45+(i%3)*28);
+    for(let i=0;i<6;i++) {
+      const x=i*180-(cameraX*.35%180);
+      rect(x,165,100,90,l.hill); rect(x+30,140,80,115,l.hill); rect(x+75,180,80,75,l.hill);
+    }
+    // Ruta del agua: un río ancho, brillante y fácil de distinguir en todo el mapa.
+    // Se dibuja detrás del terreno para que funcione como guía visual del recorrido.
+    ctx.save();
+    ctx.lineCap = "square";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(-30-(cameraX%600),226);
+    ctx.lineTo(70-(cameraX%600),218); ctx.lineTo(145-(cameraX%600),238); ctx.lineTo(230-(cameraX%600),226);
+    ctx.lineTo(320-(cameraX%600),246); ctx.lineTo(410-(cameraX%600),224); ctx.lineTo(500-(cameraX%600),239);
+    ctx.lineTo(590-(cameraX%600),218); ctx.lineTo(690-(cameraX%600),235);
+    ctx.strokeStyle = "#176f9c"; ctx.lineWidth = 31; ctx.stroke();
+    ctx.strokeStyle = "#35c9ed"; ctx.lineWidth = 23; ctx.stroke();
+    ctx.strokeStyle = "#a6f5ff"; ctx.lineWidth = 4; ctx.setLineDash([12,18]); ctx.stroke();
+    ctx.restore();
+    // Suelo
+    rect(0,278,W,82,"#80563a"); rect(0,278,W,10,l.ground);
+    for(let x=0;x<W;x+=32) { rect(x,291,16,5,"#6c452f"); rect(x+17,317,12,5,"#6c452f"); }
+    // Flechas turquesa que ayudan a ubicar la ruta hacia las gotas y la meta.
+    for(let i=0;i<Math.ceil(W/150)+1;i++) {
+      const ax = ((i*150 - (cameraX%150)) + W + 150) % (W+150) - 30;
+      rect(ax,254,18,4,"#baffff");
+      rect(ax+12,250,5,12,"#baffff");
+      rect(ax+17,246,5,20,"#baffff");
+    }
+    // Detalles decorativos: piedras del río, nenúfares, mariposas y flores pastel.
+    // Se dibujan con formas simples para que el juego siga funcionando sin internet.
+    for(let i=0;i<8;i++) {
+      const x=((i*103-cameraX*.72)%(W+120)+W+120)%(W+120)-35;
+      const y=218+(i%3)*10;
+      rect(x,y,20,5,"#78dbe7"); rect(x+5,y-3,10,4,"#d7fbff");
+    }
+    for(let i=0;i<5;i++) {
+      const x=((i*157+80-cameraX*.9)%(W+100)+W+100)%(W+100)-30;
+      const y=238+(i%2)*9;
+      rect(x,y,20,5,"#278e87"); rect(x+7,y-3,9,4,"#49bca7");
+      rect(x+10,y-7,4,4,"#ff8fbd"); rect(x+7,y-5,4,4,"#ffd5e5"); rect(x+13,y-5,4,4,"#ffd5e5");
+    }
+    // Pequeñas nubes de brillo sobre el paisaje.
+    for(let i=0;i<9;i++) {
+      const x=((i*79+25-cameraX*.22)%(W+60)+W+60)%(W+60)-20;
+      const y=116+(i%4)*19;
+      rect(x,y,3,3,"#fff6cf"); rect(x+4,y+3,2,2,"#ffffff");
+    }
+    // Arbustos y flores
+    for(let i=0;i<Math.ceil(levels[levelIndex].length/170);i++) {
+      const x=i*170+90-cameraX;
+      if(x>-45&&x<W+45) { rect(x,259,28,19,"#267b52");rect(x+7,250,18,17,"#319b5d");rect(x+13,245,5,5,"#ffd166");
+        // Florecitas rosas pequeñas para decorar el camino.
+        rect(x+32,267,3,10,"#39885c"); rect(x+27,263,5,5,"#ffb7d0"); rect(x+35,262,5,5,"#ffb7d0"); rect(x+31,259,5,5,"#ffe7f0"); rect(x+31,264,4,4,"#f4c95d");
+      }
+    }
+    // Gotas coleccionables
+    items.forEach(it=>{
+      if(it.taken) return;
+      const x=it.x-cameraX, bob=Math.sin(elapsed*4+it.phase)*4;
+      rect(x+6,it.y+bob,10,14,"#e7ffff");rect(x+2,it.y+7+bob,18,10,"#32c9ee");rect(x+5,it.y+15+bob,12,5,"#148bbd");
+      rect(x+6,it.y+7+bob,4,5,"#ffffff");
+    });
+    // Residuos peligrosos visualmente simples
+    trash.forEach(t=>{
+      const x=t.x-cameraX;
+      if(t.kind===0) { rect(x,t.y,24,24,"#7a477f");rect(x+4,t.y-4,16,5,"#c28bd1");rect(x+6,t.y+7,4,5,"#f4d6ff"); }
+      else { rect(x,t.y+5,26,19,"#d5a642");rect(x+4,t.y,18,8,"#f4d16f");rect(x+8,t.y+12,5,5,"#704a28"); }
+    });
+    // Letreros
+    signs.forEach(s=>{
+      const x=s.x-cameraX;
+      rect(x+10,s.y,5,46,"#75472f");rect(x,s.y,26,23,"#ffe8a0");rect(x+4,s.y+5,18,4,"#3b7e64");rect(x+4,s.y+12,14,4,"#3b7e64");
+      if(Math.abs(player.x-s.x)<80) { rect(x-9,s.y-20,45,15,"#123c52");ctx.fillStyle="#fff3cf";ctx.font="10px Courier New";ctx.fillText("PULSA E",x-8,s.y-9); }
+    });
+    // Personajes
+    people.forEach(p=>{
+      const x=p.x-cameraX;
+      rect(x+5,p.y,15,14,"#d99a6b");rect(x+4,p.y-2,17,7,"#53372e");
+      rect(x+2,p.y+15,21,18,p.seen?"#ffe08a":"#ef7c61");rect(x+4,p.y+33,6,7,"#304b67");rect(x+15,p.y+33,6,7,"#304b67");
+      rect(x+8,p.y+5,3,3,"#173447");rect(x+16,p.y+5,3,3,"#173447");
+      if(Math.abs(player.x-p.x)<80) { rect(x-9,p.y-22,45,15,"#123c52");ctx.fillStyle="#fff3cf";ctx.font="10px Courier New";ctx.fillText("PULSA E",x-8,p.y-11); }
+    });
+    // Portal de salida
+    const exitX=l.length-70-cameraX;
+    rect(exitX,220,34,58,"#236b54");rect(exitX+6,228,22,50,"#65f2b4");rect(exitX+12,235,10,43,"#baffdc");
+    ctx.fillStyle="#123c52";ctx.font="bold 12px Courier New";ctx.fillText("META",exitX-4,210);
+    // Personaje pixel-art: el reflejo horizontal hace que mire hacia donde camina.
+    if(invulnerable<=0 || Math.floor(elapsed*12)%2===0) {
+      const sx=Math.round(player.x-cameraX), y=player.y;
+      ctx.save();
+      ctx.translate(player.facing < 0 ? sx+25 : sx, 0);
+      ctx.scale(player.facing < 0 ? -1 : 1, 1);
+      // Sombra y cabello
+      rect(2,y+29,22,3,"#397c79");
+      rect(5,y,14,12,"#f2b28a");
+      rect(3,y-3,17,7,"#513044"); rect(3,y+1,4,8,"#513044");
+      // Moño rosa en el cabello
+      rect(1,y-5,5,4,"#f08db5"); rect(5,y-5,4,4,"#ffd0e2"); rect(4,y-4,3,3,"#c65d8a");
+      // Ojo y nariz hacia el frente (lado derecho del dibujo base)
+      rect(15,y+4,3,3,"#34243a"); rect(18,y+7,2,2,"#d67b83");
+      // Blusa, faldita y brazos
+      rect(5,y+12,13,10,"#fff3fa"); rect(3,y+15,17,7,"#52c6bd");
+      rect(2,y+13,4,9,"#f2b28a"); rect(19,y+13,5,10,"#f2b28a");
+      rect(4,y+22,7,5,"#f28db5"); rect(11,y+22,7,5,"#f7b4d0");
+      rect(5,y+27,5,4,"#4a536f"); rect(14,y+27,5,4,"#4a536f");
+      ctx.restore();
+    }
+    // Barra de avance
+    rect(12,12,130,8,"#16465a");rect(12,12,130*(player.x/l.length),8,"#ffe08a");
+  }
+
+  function frame(time) {
+    const dt=Math.min(.033,(time-lastTime)/1000||0); lastTime=time;
+    update(dt);
+    drawWorld();
+    requestAnimationFrame(frame);
+  }
+
+  document.addEventListener("keydown",e=>{
+    const key=e.key;
+    if(["ArrowLeft","ArrowRight","ArrowUp"," ","w","W","a","A","d","D","e","E"].includes(key)) e.preventDefault();
+    keys.add(key);
+    if((key===" "||key==="ArrowUp"||key==="w"||key==="W")&&!e.repeat) jump();
+    if((key==="e"||key==="E")&&!e.repeat) interact();
+    if((key==="p"||key==="P")&&!e.repeat) togglePause();
+    if((key==="r"||key==="R")&&!e.repeat) startGame();
+  });
+  document.addEventListener("keyup",e=>keys.delete(e.key));
+  window.addEventListener("blur",()=>keys.clear());
+
+  function togglePause() {
+    if(state==="playing") {
+      state="paused";
+      showOverlay("Pausa", "Tómate un descanso. Cuando quieras, vuelve a tu misión.", [
+        {label:"Continuar",action:()=>{state="playing";$("overlayCard").classList.remove("show");}},
+        {label:"Reiniciar",secondary:true,action:startGame}
+      ]);
+    } else if(state==="paused") { state="playing"; $("overlayCard").classList.remove("show"); }
+  }
+  $("startBtn").addEventListener("click",startGame);
+  $("helpBtn").addEventListener("click",help);
+  $("leftBtn").addEventListener("click",()=>moveButton(-1));
+  $("rightBtn").addEventListener("click",()=>moveButton(1));
+  $("jumpBtn").addEventListener("click",jump);
+  $("interactBtn").addEventListener("click",interact);
+  $("pauseBtn").addEventListener("click",togglePause);
+  $("restartBtn").addEventListener("click",startGame);
+
+  // Dibujar una escena inicial antes de empezar.
+  resetPlayer();
+  buildLevel();
+  state="menu";
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
